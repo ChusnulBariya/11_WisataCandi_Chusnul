@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:wisata_candi/models/candi.dart';
 
@@ -9,7 +10,8 @@ class DetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+     body: SingleChildScrollView(
+      child: Column(
         children: [
           // Image Header
           Stack(
@@ -122,10 +124,98 @@ class DetailScreen extends StatelessWidget {
                 Divider(color: Colors.deepPurple.shade100,),
                 const SizedBox(height: 16,),
                 // Info Bawah
-              ],
-            ),
-          ),
-        ],
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Deskripsi",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                        const SizedBox(
+                          height: 4,
+                          ),
+                        SizedBox(
+                          child: Text(candi.description)),
+                  ]
+                ),
+                //info gallery 
+                Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Divider(color:
+                       Colors.deepPurple.shade100),
+                     const Text('Galeri', 
+                     style: TextStyle(
+                      fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      ),
+                      SizedBox(height: 10,),
+                      SizedBox(
+                        height: 100,
+                        child: ListView.builder(
+                          itemCount: candi.imageUrls.length,
+                          itemBuilder: (context, index){
+                            return Padding( 
+                            padding: EdgeInsets.only(right: 8),
+                            child: GestureDetector(
+                              onTap: (){},
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                  color: Colors.deepPurple.shade100,
+                                  width: 2,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                  child: CachedNetworkImage(
+                                  imageUrl: candi
+                                  .imageUrls[index],
+                                  width: 120,
+                                  height: 120,
+                                  fit: BoxFit.cover,placeholder: (context, url) =>
+                                            Container(
+                                          width: 120,
+                                          height: 120,
+                                          color: Colors.deepPurple[50],
+                                        ),
+                                        errorWidget: (context, url, error) =>
+                                            const Icon(
+                                          Icons.error,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 4,
+                        ),
+                        const Text(
+                          'Tap untuk memperbesar',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
