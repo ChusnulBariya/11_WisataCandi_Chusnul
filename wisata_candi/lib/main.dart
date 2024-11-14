@@ -40,6 +40,7 @@ class MainApp extends StatelessWidget {
       // home: SignUpScreen(),
       // home: SearchScreen(),
       // home: HomeScreen(),
+      home: MainScreen(),
     );
   }
 }
@@ -75,9 +76,9 @@ class _MainScreenState extends State<MainScreen> {
         ), 
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (Index){
+          onTap: (index){
             setState(() {
-              _currentIndex = Index;
+              _currentIndex = index;
             });
           },
           items: const [
