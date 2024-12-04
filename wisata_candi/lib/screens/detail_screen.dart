@@ -61,26 +61,27 @@ Future<void> _toggleFavorite() async{
     isFavorite = favoriteStatus;
   });
 }
-
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
      body: SingleChildScrollView(
       child: Column(
         children: [
-          // Image Header
+         
           Stack(
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    widget.candi.imageAsset,
-                    width: 300,
-                    fit: BoxFit.cover,
+               // Image Header
+              Hero(
+                tag: widget.candi.imageAsset,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      widget.candi.imageAsset,
+                      width: 300,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
