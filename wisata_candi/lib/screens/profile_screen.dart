@@ -1,5 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:wisata_candi/widget/profile_item_info.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -9,23 +13,198 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // TODO 1. Deklarasikan variabel yang dibutuhkan
   bool isSignedIn = true;
-  String fullName = "DummyName";
-  String userName = "DummyUsername";
+  String fullName = '';
+  String userName = '';
   int favoriteCandiCount = 0;
-  late Color iconColor;
+  File? image;
 
-  // TODO: 5. Implementasi Fungsi Sign In
+   // Fungsi untuk Sign In
   void signIn() {
-   Navigator.pushNamed(context, '/signIn');
+    Navigator.pushNamed(context, '/signin');
   }
 
-  // TODO: 6. Implementasi Fungsi Sign Out
-  void signOut() {
+  // Fungsi untuk Logout, menghapus data yang tersimpan
+  Future<void> logOut() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // Clear all stored data
+
+    Navigator.pushReplacementNamed(context, '/signin');
+  }
+
+
+  // Fungsi untuk mengambil gambar
+  Future<void> selectImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? selectedImage = await picker.pickImage(source: ImageSource.camera);
+    
+    if (selectedImage != null) {
+      setState(() {
+        image = File(selectedImage.path); 
+        print("Selected image path: ${selectedImage.path}");  // Set the image file to the state
+      });
+    }
+  }
+
+   // Fungsi untuk menyimpan jumlah favorite
+  Future<void> _saveFavoriteCount() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('favoriteCandiCount', favoriteCandiCount);
+  }
+  
+  // Fungsi untuk mengedit user name
+  Future<void> _editUserName() async {
+    final TextEditingController controller = TextEditingController(text: userName);
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit User Name'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: 'Enter new user name'),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () async {
+                final SharedPreferences prefs = await SharedPreferences.getInstance();
+                setState(() {
+                  userName = controller.text;
+                });
+                await prefs.setString('currentUsername', userName);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+   // Fungsi untuk mengenkripsi teks
+  String encryptText(String text) {
+    return base64.encode(utf8.encode(text));
+  }
+
+  // Fungsi untuk mendekripsi teks
+  String decryptText(String text) {
+    return utf8.decode(base64.decode(text));
+  }
+
+  // Fungsi untuk mengedit full name
+  Future<void> _editFullName() async {
+    final TextEditingController controller = TextEditingController(text: fullName);
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit Full Name'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: 'Enter new full name'),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () async {
+                final String newName = controller.text;
+                final SharedPreferences prefs = await SharedPreferences.getInstance();
+                final String encryptedName = encryptText(newName);
+
+                setState(() {
+                  fullName = newName;
+                });
+
+                await prefs.setString('currentName', encryptedName);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();  // Mengecek status login saat pertama kali membuka layar
+    _loadProfileData();  // Memuat data profil pengguna
+  }
+
+    // Mengecek status login dari SharedPreferences
+  Future<void> _checkLoginStatus() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool? signedIn = prefs.getBool('isSignedIn');
     setState(() {
-      isSignedIn = !isSignedIn;
+      isSignedIn = signedIn ?? false;
     });
+    if (!isSignedIn) {
+      Navigator.pushReplacementNamed(context, '/signin');
+    }
+  }
+Future<Map<String, String>> _retrieveAndDecryptDataFromPrefs(
+  SharedPreferences sharedPreferences,
+) async {
+  try {
+    final encryptedUsername = sharedPreferences.getString('username');
+    final encryptedPassword = sharedPreferences.getString('fullname');
+    final keyString = sharedPreferences.getString('key');
+    final ivString = sharedPreferences.getString('iv');
+
+    if (encryptedUsername == null ||
+        encryptedPassword == null ||
+        keyString == null ||
+        ivString == null) {
+      throw Exception('Missing credentials in SharedPreferences.');
+    }
+
+    final encrypt.Key key = encrypt.Key.fromBase64(keyString);
+    final encrypt.IV iv = encrypt.IV.fromBase64(ivString);
+    final encrypter = encrypt.Encrypter(encrypt.AES(key));
+
+    final decryptedUsername = encrypter.decrypt64(encryptedUsername, iv: iv);
+    final decryptedPassword = encrypter.decrypt64(encryptedPassword, iv: iv);
+
+    return {'username': decryptedUsername, 'fullname': decryptedPassword};
+  } catch (e) {
+    print('Decryption failed: $e');
+    return {};
+  }
+}
+   // Memuat data profil pengguna dari SharedPreferences
+  Future<void> _loadProfileData() async {
+     final prefs = await SharedPreferences.getInstance();
+     final data = await _retrieveAndDecryptDataFromPrefs(prefs);
+
+      if (data.isNotEmpty) {
+        final decryptedUsername = data['username'];
+        final decryptedPassword = data['fullname'];
+        setState(() {
+          fullName = decryptedPassword ?? "Fullname tidak ditemukan.";
+          userName = decryptedUsername ?? "Username tidak ditemukan."; // Ambil username
+          favoriteCandiCount = prefs.getInt('favoriteCandiCount') ?? 0; // Ambil count favorite
+          });
+      }
+  }
+
+  // Fungsi untuk menyimpan data saat user mendaftar
+  Future<void> saveProfileData(String name, String username) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('currentName', encryptText(name)); // Simpan nama lengkap terenkripsi
+    await prefs.setString('currentUsername', username); // Simpan username
+    await prefs.setBool('isSignedIn', true); // Set status login
   }
 
   @override
@@ -34,15 +213,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: Stack(
         children: [
           Container(
-            height: 200,
-            width: double.infinity,
-            color: Colors.deepPurple,
+            height: 200, width: double.infinity, color: Colors.deepPurple,
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
-                // TODO: 2. Buat bagian ProfileHeader yang berisi gambar profil
+                // Profile Header dengan gambar profil
                 Align(
                   alignment: Alignment.topCenter,
                   child: Padding(
@@ -52,19 +229,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Container(
                           decoration: BoxDecoration(
-                            border:
-                                Border.all(color: Colors.deepPurple, width: 2),
+                            border: Border.all(
+                              color: Colors.deepPurple,
+                              width: 2,
+                            ),
                             shape: BoxShape.circle,
                           ),
-                          child: const CircleAvatar(
+                          child: CircleAvatar(
                             radius: 50,
-                            backgroundImage:
-                                AssetImage('images/placeholder_image.png'),
+                            backgroundImage: image == null
+                                ? const AssetImage('images/placeholder_image.png')
+                                : FileImage(image!) as ImageProvider,
                           ),
                         ),
                         if (isSignedIn)
                           IconButton(
-                            onPressed: () {},
+                            onPressed: selectImage,
                             icon: Icon(
                               Icons.camera_alt,
                               color: Colors.deepPurple[50],
@@ -74,17 +254,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                Divider(color: Colors.deepPurple[100]),
+                const SizedBox(height: 4),
 
-                // TODO: 3. Buat bagian ProfileInfo yang berisi informasi profil
-                const SizedBox(
-                  height: 20,
-                ),
-                Divider(
-                  color: Colors.deepPurple[100],
-                ),
-                const SizedBox(
-                  height: 4,
-                ),
+                // Baris UserName
                 Row(
                   children: [
                     SizedBox(
@@ -99,102 +273,115 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             width: 8,
                           ),
                           Text(
-                            'Pengguna',
+                            'User Name ',
                             style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     Expanded(
                       child: Text(
-                        ": $userName",
+                        ': $userName',
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.deepPurple),
+                      onPressed: _editUserName, // Fungsi untuk mengedit nama pengguna
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Divider(color: Colors.deepPurple[100]),
+                const SizedBox(height: 4),
+
+                // Baris Full Name
+                Row(
+                  children: [
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width / 3,
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.lock,
+                            color: Colors.amber,
+                          ),
+                          SizedBox(
+                            width: 8,
+                          ),
+                          Text(
+                            'Name ',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        ': $fullName',
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.deepPurple),
+                      onPressed: _editFullName, // Fungsi untuk mengedit nama lengkap
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Divider(color: Colors.deepPurple[100]),
+                const SizedBox(height: 4),
+
+                // Baris Favorite
+                Row(
+                  children: [
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width / 3,
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.lock,
+                            color: Colors.amber,
+                          ),
+                          SizedBox(
+                            width: 8,
+                          ),
+                          Text(
+                            'Favorite ',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Icon(
+                            Icons.favorite,
+                            color: Colors.red,  
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        favoriteCandiCount > 0
+                            ? ': $favoriteCandiCount'
+                            : ': No Favorites', 
                         style: const TextStyle(fontSize: 18),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(
-                  height: 4,
-                ),
-                Divider(
-                  color: Colors.deepPurple[100],
-                ),
-                const SizedBox(
-                  height: 4,
-                ),
-                // Row(
-                //   children: [
-                //     SizedBox(
-                //       width: MediaQuery.of(context).size.width / 3,
-                //       child: const Row(
-                //         children: [
-                //           Icon(
-                //             Icons.person,
-                //             color: Colors.blue,
-                //           ),
-                //           SizedBox(
-                //             width: 8,
-                //           ),
-                //           Text(
-                //             'Nama',
-                //             style: TextStyle(
-                //                 fontSize: 18, fontWeight: FontWeight.bold),
-                //           ),
-                //         ],
-                //       ),
-                //     ),
-                //     Expanded(
-                //       child: Text(
-                //         ': $fullName',
-                //         style: const TextStyle(fontSize: 18),
-                //       ),
-                //     ),
-                //     if (isSignedIn) const Icon(Icons.edit),
-                //   ],
-                // ),
-                ProfileItemInfo(
-                  icon: Icons.person,
-                  label: 'Name',
-                  value: fullName,
-                  iconColor: Colors.blue,
-                  showEditIcon: isSignedIn,
-                  onEditPressed: () {
-                    debugPrint('Icon Edit ditekan');
-                  },
-                ),
-                const SizedBox(
-                  height: 4,
-                ),
-                Divider(
-                  color: Colors.deepPurple[100],
-                ),
-                const SizedBox(
-                  height: 4,
-                ),
-                ProfileItemInfo(
-                    icon: Icons.favorite,
-                    label: 'Favorit',
-                    value: favoriteCandiCount > 0 ? '$favoriteCandiCount' : '',
-                    iconColor: Colors.red),
-
-                // TODO: 4. Buat ProfileActions yang berisi TextButton sign in/out
-                const SizedBox(
-                  height: 4,
-                ),
-                Divider(
-                  color: Colors.deepPurple[100],
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 4),
+                Divider(color: Colors.deepPurple[100]),
+                const SizedBox(height: 20),
                 isSignedIn
-                    ? TextButton(
-                        onPressed: signOut, 
-                        child: const Text('Sign Out'))
-                    : TextButton(
-                        onPressed: signIn, 
-                        child: const Text('Sign In')),
+                    ? TextButton(onPressed: logOut, child: const Text('Log Out'))
+                    : TextButton(onPressed: signIn, child: const Text('Sign in')),
               ],
             ),
           ),

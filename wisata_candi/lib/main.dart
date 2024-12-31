@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:wisata_candi/data/candi_data.dart';
-import 'package:wisata_candi/screens/favorite_screen.dart';
 import 'package:wisata_candi/screens/home_screen.dart';
 import 'package:wisata_candi/screens/profile_screen.dart';
 import 'package:wisata_candi/screens/sign_in.dart';
+import 'package:wisata_candi/screens/favorite_screen.dart';
 import 'package:wisata_candi/screens/sign_up_screen.dart';
 import 'screens/detail_screen.dart';
 import 'package:wisata_candi/screens/search_screen.dart';
+import 'package:another_flutter_splash_screen/another_flutter_splash_screen.dart';
 
 void main() {
   runApp(const MainApp());
@@ -39,10 +40,20 @@ class MainApp extends StatelessWidget {
       // home: SignInScreen(),
       // home: SignUpScreen(),
       // home: SearchScreen(),
-      // home: HomeScreen(),
-      home: MainScreen(),
+      // home: MainScreen(),
+      home:FlutterSplashScreen.fadeIn(
+        backgroundColor: const Color.fromRGBO(255, 248, 242, 1),
+        childWidget: SizedBox(
+          height: 200,
+          width: 200,
+          child: Image.asset("Images/th.jpg"),
+        ),
+
+        nextScreen: const SignInScreen(),
+      ),
       initialRoute: '/',
       routes: {
+        '/mainScreen': (context) => const MainScreen(),
         '/homeScreen': (context) => const HomeScreen(),
         '/signIn': (context) => const SignInScreen(),
         '/signUp': (context) => const SignUpScreen(),
@@ -59,7 +70,8 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-    //TODO: 1. Deklarasikan variabel
+
+   //TODO: 1. Deklarasikan variabel
     int _currentIndex = 0;
     final List<Widget> _children = [
       HomeScreen(),
@@ -68,11 +80,13 @@ class _MainScreenState extends State<MainScreen> {
       ProfileScreen(),
     ];
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       //TODO: 2. Buat properti body berupa widget yang ditampilkan 
       body: _children[_currentIndex],
+      
       //TODO: 3. Buat properti bottomNavigationBar dengan nilai Theme 
       bottomNavigationBar: 
       Theme(
@@ -114,3 +128,4 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
+
